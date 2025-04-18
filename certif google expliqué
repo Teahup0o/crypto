@@ -1,0 +1,43 @@
+1. Exporter un certificat SSL depuis un site Google via la ligne de commande (avec openssl)
+bash
+Copier
+Modifier
+echo | openssl s_client -connect www.google.com:443 | openssl x509 -text
+Cette commande affiche le certificat SSL utilisé par www.google.com.
+
+2. Créer un certificat auto-signé 
+bash
+Copier
+Modifier
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365
+Cela génère une clé privée (key.pem) et un certificat auto-signé (cert.pem).
+
+3. Télécharger une clé JSON d’un compte de service Google (pour les API / Google Cloud)
+Cela se fait depuis la Google Cloud Console. Une fois la clé téléchargée, tu peux l’utiliser ainsi :
+
+bash
+Copier
+Modifier
+gcloud auth activate-service-account --key-file=chemin/vers/clé.json
+Vérifier que l’authentification fonctionne :
+
+bash
+Copier
+Modifier
+gcloud auth list
+4. Exporter un certificat depuis un fichier .p12
+Pour convertir en PEM (format lisible) :
+
+bash
+Copier
+Modifier
+openssl pkcs12 -in key.p12 -out key.pem -nodes
+5. Obtenir un jeton d’accès OAuth2 avec curl
+Si tu as un client_id, un client_secret et un refresh_token :
+
+bash
+Copier
+Modifier
+curl -X POST \
+  -d "client_id=XXX&client_secret=XXX&refresh_token=XXX&grant_type=refresh_token" \
+  https://oauth2.googleapis.com/token
