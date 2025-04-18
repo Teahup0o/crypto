@@ -1,0 +1,122 @@
+Générer des clés et des certificats dans le cadre de l'authentification unique
+Google Workplace propose le service d'authentification unique aux clients Google Workspace ou Google Workspace for Education. Ce service d'authentification unique pour Google Workplace accepte les clés publiques et les certificats générés avec l'algorithme RSA ou DSA. Pour utiliser le service, vous devez générer un jeu de clés publiques et privées, ainsi qu'un certificat X.509 contenant la clé publique. Une fois que vous disposez d'une clé publique ou d'un certificat, vous devez l'enregistrer auprès de Google. Il vous suffit pour cela d'importer cette clé ou ce certificat par l'intermédiaire de votre console d'administration Google.
+
+La méthode à utiliser pour générer des clés et des certificats dépend souvent de votre plate-forme de développement et de votre langage de programmation de prédilection. Voici différentes méthodes permettant de générer les clés et certificats requis pour le service d'authentification unique de Google Workspace.
+
+Utiliser OpenSSL
+Il existe de nombreux moyens de créer des paires de clés publiques et privées, mais l'outil Open Source OpenSSL reste l'un des plus populaires. Présent dans toutes les grandes plates-formes, il se caractérise par une interface de ligne de commande simple qui permet de générer des clés.
+
+Créer une clé privée RSA
+Pour générer une clé privée RSA avec OpenSSL, une seule étape est nécessaire :
+
+openssl genrsa -out rsaprivkey.pem 2048
+
+Cette commande génère une clé privée chiffrée PEM et la stocke dans le fichier "rsaprivkey.pem". L'exemple précédent permet de générer une clé 2048 bits qui convient à la plupart des cas. La clé privée générée doit être gardée secrète. Elle permet de signer et de déchiffrer les données.
+
+Certaines configurations, notamment Java, doivent parfois passer par les formats DER ou PKCS8, qui peuvent être générés en ajoutant, par exemple, les étapes suivantes :
+
+1. openssl rsa -in rsaprivkey.pem -pubout -outform DER -out rsapubkey.der
+2. openssl pkcs8 -topk8 -inform PEM -outform DER -in rsaprivkey.pem -out rsaprivkey.der -nocrypt
+La première commande permet de générer la clé publique au format DER.
+
+La seconde commande permet de générer la clé privée aux formats pkcs8 et DER. Une fois que vous avez généré ces clés (rsapubkey.der et rsaprivkey.der), vous pouvez les utiliser.
+
+Créer une clé privée DSA
+Pour générer une clé DSA, deux commandes sont nécessaires :
+
+1. openssl dsaparam -out dsparam.pem 2048
+2. openssl gendsa -out daprivkey.pem dsaparam.pem
+La première commande permet de créer le fichier de paramètre DSA dsaparam.pem. Dans ce cas, ce fichier demande à OpenSSL de créer une clé 2048 bits. Le fichier "dsaparam.pem" n'est pas une clé. Il peut donc être supprimé une fois les clés publique et privée créées. La seconde commande permet de créer la clé privée dans le fichier "dsaprivkey.pem". Cette clé doit rester secrète.
+
+Pour exporter la clé au format (binaire) DER, vous pouvez utiliser les commandes suivantes :
+
+1. openssl da -in dsaprivkey.pem -outform DER -pubout -out dapubkey.der
+2. openssl pkcs8 -topk8 -inform PEM -outform DER -in daprivkey.pem -out dsaprivkey.der -nocrypt
+
+La première commande permet d'extraire la clé publique au format DER.
+
+La seconde commande permet de convertir la clé privée aux formats pkcs8 et DER. Vous pouvez ensuite utiliser cette paire de clés publique (dsapubkey.der) et privée (dsaprivkey.der).
+
+Créer un certificat
+Une fois que vous avez votre paire de clés, il est facile de créer un certificat X.509. Le certificat contient la clé publique correspondante, ainsi que des métadonnées liées à l'organisation qui a créé le certificat. Procédez comme suit pour créer un certificat auto-signé à partir de la clé privée RSA ou DSA :
+
+openssl req -new -x509 -key dsaprivkey.pem -out dsacert.pem
+
+Répondez aux questions qui vous sont posées. Le certificat est ensuite créé et enregistré dans le fichier "dsacert.pem". Il s'agit du fichier à importer dans Google Workspace via le panneau de configuration lors de la configuration de l'authentification unique.
+
+Créer une empreinte de certificat
+Certaines applications nécessitent une empreinte de certificat X.509 plutôt que le certificat X.509 lui-même. Une empreinte est un récapitulatif du certificat au format binaire x509. Le type d'empreinte (SHA-1 ou SHA-256, par exemple) dépend de l'algorithme utilisé pour la générer.
+
+Pour créer une empreinte SHA-256 à partir d'un certificat X.509, utilisez la commande suivante (en remplaçant le nom de fichier .pem du certificat par le vôtre) :
+
+openssl x509 -noout -fingerprint -sha256 -inform pem -in "GoogleIDPCertificate-domain.com.pem"
+
+Utiliser Microsoft Visual Studio pour .NET
+Microsoft Visual Studio 2005 fournit des utilitaires (dans le répertoire Common7\Tools\Bin) permettant de générer un certificat à utiliser dans Google Workspace. Les commandes ci-dessous permettent de créer la paire de clés publique et privée et le certificat dans .NET :
+
+1. makecert -r -pe -n "CN=Test Certificate" -sky exchange -sv testcert.pvk testcert.cer
+2. pvk2pfx -pvk testcert.pvk -spc testcert.cer -pfx testcert.pfx
+
+Par défaut, les commandes ci-dessus intègrent l'algorithme RSA. La première commande permet de créer un certificat X.509 autosigné intitulé testcert.cer et la clé privée correspondante à l'aide de l'outil Certificate Creation (makecert.exe).
+
+La seconde commande permet de créer un fichier Personal Information Exchange (PFX) à partir de fichiers CER et PVK à l'aide de l'outil pvk2pfx (pvk2pfx.exe). Le fichier PFX contient la clé publique et la clé privée.
+
+Le fichier testcert.cer créé avec la première commande peut être importé dans Google Workspace via le panneau de configuration ; le fichier testcert.pfx obtenu avec la seconde commande permet de créer une instance de X509Certificate2 (.NET 2.0+) et de signer la réponse SAML.
+
+Utiliser Keytool dans Java
+Les développeurs Java peuvent créer la paire de clés publiques/privées et le certificat X.509 à l'aide de l'utilitaire keytool, qui se trouve dans le kit JDK standard. keytool est un utilitaire de gestion de clés et de certificats qui permet aux utilisateurs d'administrer leurs propres paires de clés publiques/privées et certificats associés pour les utiliser dans des schémas d'authentification nécessitant une signature numérique. keytool stocke les clés et les certificats dans un "keystore" qui, dans la configuration par défaut, est simplement un fichier (".keystore") dans le répertoire d'accueil de l'utilisateur. Les clés privées sont protégées par mot de passe.
+
+Créer des paires de clés DSA
+1. keytool -genkey -alias dsassokey -keyalg "DSA" -keysize 2048 -validity 180 -sigalg "SHA256withDSA"
+2. keytool -export -alias dsassokey -file dsasso.cer
+
+La première commande permet de générer une paire de clés publique/privée de taille 2048 avec une validité de 180 jours à l'aide de l'algorithme DSA.
+
+La seconde commande permet de générer un certificat X.509 ("dsasso.cer") à partir de la clé publique. Vous pouvez ensuite importer dsasso.cer dans Google Workspace par le biais du panneau de configuration.
+
+Créer des paires de clés RSA
+1. keytool -genkey -alias rsassokey -keyalg "RSA" -keysize 2048 -validity 180
+2. keytool -export -alias rsassokey -file rsasso.cer
+
+La première commande permet de générer une paire de clés publique/privée de taille 2048 avec une validité de 180 jours à l'aide de l'algorithme RSA.
+
+La seconde commande permet de générer un certificat X.509 ("rsasso.cer") à partir de la clé publique. Vous pouvez ensuite importer rsasso.cer dans Google Workspace par le biais du panneau de configuration.
+
+Utiliser Java Cryptography Architecture
+Java Cryptography Architecture (JCA) fournit des classes et des interfaces de base pour générer et manipuler des propriétés de sécurité. L'API JCA inclut les parties de l'API Java 2 SDK Security relatives à la cryptographie. Avec cette API, vous pouvez facilement générer des paires de clés publique et privée dans l'algorithme que vous souhaitez. Vous trouverez ci-dessous un exemple de code permettant de créer des clés DSA ou RSA à utiliser avec le service d'authentification unique Google Workspace.
+
+Créer une paire de clés publique et privée
+import java.io.*;
+import java.security.*;
+
+public class KeyGenDSA {
+
+  public static void main(String[] args) {
+        try {
+          KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSA");
+          SecureRandom random = SecureRandom.getInstanceStrong();
+          keyGen.initialize(2048, random);
+
+          KeyPair pair = keyGen.generateKeyPair();
+          PrivateKey priv = pair.getPrivate();
+          PublicKey pub = pair.getPublic();
+
+          byte[] encPriv = priv.getEncoded();
+          FileOutputStream privfos = new FileOutputStream("DSAPrivateKey.key");
+          privfos.write(encPriv);
+          privfos.close();
+
+          byte[] encPub = pub.getEncoded();
+          FileOutputStream pubfos = new FileOutputStream("DSAPublicKey.key");
+          pubfos.write(encPub);
+          pubfos.close();
+
+   } catch (Exception e) {
+         e.printStackTrace();
+   }
+  }
+}
+Dans le code ci-dessus, la classe KeyPairGenerator permet de créer une paire de clés DSA. Les clés sont générées au format binaire et dans des fichiers individuels. Une fois les clés générées, vous pouvez enregistrer la clé publique auprès de Google Workspace et signer votre réponse SAML à l'aide de la clé privée. Pour générer une paire de clés RSA plutôt que DSA, il suffit de remplacer "DSA" par "RSA" dans le code.
+
+Enregistrer un certificat ou une clé publique auprès de Google Workspace
+Une fois que vous avez terminé la génération des clés et certificats (étape la plus compliquée) vous n'avez plus qu'à enregistrer le certificat ou la clé publique auprès de Google Workspace. Pour ce faire, accédez à la Console d'administration et connectez-vous en tant qu'administrateur. Sélectionnez Sécurité, puis Configurer l'authentification unique (SSO) et complétez tous les champs de la page sous Configurer l'authentification unique avec un fournisseur d'identité tiers.
